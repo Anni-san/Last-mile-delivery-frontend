@@ -9,7 +9,8 @@ function App() {
   const [user, setUser] = useState(null);
 
   const handleLogout = () => {
-    setUser(null); // Clears the user and throws them back to the login screen
+    localStorage.removeItem('token'); // Destroy the security token
+    setUser(null); // Return to login screen
   };
 
   // If no user is logged in, ONLY show the login screen

@@ -4,21 +4,39 @@ import './index.css';
 const Login = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    
-    // Mock Authentication Logic:
-    // In production, this verifies the JWT token from your backend.
-    let role = 'CUSTOMER';
-    if (email.toLowerCase().includes('admin')) {
-      role = 'ADMIN';
-    } else if (email.toLowerCase().includes('agent')) {
-      role = 'AGENT';
-    }
+    setError('');
+    setIsLoading(true);
 
-    // Pass the user info up to the App component
-    onLogin({ email, role });
+    try {
+      // 1. Send credentials to your real Node.js backend
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed. Please check your credentials.');
+      }
+
+      // 2. Success! Store the JWT securely in the browser
+      localStorage.setItem('token', data.token);
+
+      // 3. Pass the real user data (id, name, role) up to the App component
+      onLogin(data.user);
+      
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -27,6 +45,13 @@ const Login = ({ onLogin }) => {
         <h1 className="brand-title" style={{ textAlign: 'center', marginBottom: '8px' }}>Welcome Back</h1>
         <p className="text-muted" style={{ textAlign: 'center', marginBottom: '24px' }}>Sign in to access your portal.</p>
         
+        {/* Display backend errors (e.g., "Invalid password") */}
+        {error && (
+          <div style={{ backgroundColor: '#fee2e2', color: '#991b1b', padding: '12px', borderRadius: '6px', marginBottom: '16px', fontSize: '0.9rem' }}>
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleLogin}>
           <div className="form-group">
             <label className="form-label">Email Address</label>
@@ -50,16 +75,15 @@ const Login = ({ onLogin }) => {
               required 
             />
           </div>
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '12px', marginTop: '8px' }}>
-            Secure Sign In
+          <button 
+            type="submit" 
+            className="btn btn-primary" 
+            disabled={isLoading}
+            style={{ width: '100%', padding: '12px', marginTop: '8px', opacity: isLoading ? 0.7 : 1 }}
+          >
+            {isLoading ? 'Authenticating...' : 'Secure Sign In'}
           </button>
         </form>
-
-        <div style={{ marginTop: '24px', fontSize: '0.85rem', color: '#64748b', textAlign: 'center', background: '#f8fafc', padding: '12px', borderRadius: '6px' }}>
-          <strong>Testing Tip:</strong><br/>
-          Type "admin" in email for Admin Portal<br/>
-          Type anything else for Customer Portal
-        </div>
       </div>
     </div>
   );

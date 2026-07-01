@@ -33,10 +33,10 @@ function App() {
       </nav>
 
       <main>
-        {/* Strictly enforce view based on role */}
         {user.role === 'CUSTOMER' && <CustomerPortal />}
         {user.role === 'ADMIN' && <Dashboard />}
-        {user.role === 'AGENT' && <AgentDashboard />}
+        {/* Pass the user object so the dashboard knows the agent's ID */}
+        {user.role === 'AGENT' && <AgentDashboard user={user} />}
       </main>
     </div>
   );

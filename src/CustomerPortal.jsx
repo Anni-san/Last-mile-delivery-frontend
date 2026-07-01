@@ -11,29 +11,92 @@ const CustomerPortal = () => {
     height: ''
   });
 
-  const [calculatedPrice, setCalculatedPrice] = useState(null);
+  const [calculationDetails, setCalculationDetails] = useState(null);
   const [orderSuccess, setOrderSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Handle typing in the form
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    setCalculatedPrice(null); // Hide price if they change dimensions
+    setCalculationDetails(null); 
     setOrderSuccess(false);
+    setError('');
   };
 
-  // Mock function to simulate your backend math engine
-  const handleCalculate = (e) => {
+  // 1. Talk to the backend Math Engine
+  const handleCalculate = async (e) => {
     e.preventDefault();
-    // In the real app, this will be a fetch() to your backend
-    const mockPrice = (parseFloat(formData.actualWeight || 2) * 45.5).toFixed(2);
-    setCalculatedPrice(mockPrice);
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('http://localhost:5000/api/rates/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          orderType: 'B2C', // Defaulting to B2C for this MVP
+          isCOD: false      // Defaulting to Prepaid
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.error || 'Failed to calculate rate.');
+
+      // Save the math results so we can show them and use them to book the order
+      setCalculationDetails({
+        chargeableWeight: data.chargeableWeight,
+        totalCharge: data.totalCharge,
+        volumetricWeight: ((formData.length * formData.breadth * formData.height) / 5000).toFixed(2)
+      });
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Mock function to simulate booking the order
-  const handleBookOrder = () => {
-    setOrderSuccess(true);
-    setCalculatedPrice(null);
-    setFormData({ pickupZoneId: '1', dropZoneId: '2', actualWeight: '', length: '', breadth: '', height: '' });
+  // 2. Trigger the Auto-Assignment Order Creation
+  const handleBookOrder = async () => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const token = localStorage.getItem('token');
+
+      const response = await fetch('http://localhost:5000/api/orders', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({
+          customerId: 1, // Hardcoded for this assignment MVP
+          pickupZoneId: formData.pickupZoneId,
+          dropZoneId: formData.dropZoneId,
+          actualWeight: formData.actualWeight,
+          volumetricWeight: calculationDetails.volumetricWeight,
+          chargeableWeight: calculationDetails.chargeableWeight,
+          totalCharge: calculationDetails.totalCharge
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.error || 'Failed to create order.');
+
+      // Success!
+      setOrderSuccess(true);
+      setCalculationDetails(null);
+      setFormData({ pickupZoneId: '1', dropZoneId: '2', actualWeight: '', length: '', breadth: '', height: '' });
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -46,9 +109,15 @@ const CustomerPortal = () => {
           </div>
         </header>
 
+        {error && (
+          <div style={{ backgroundColor: '#fee2e2', color: '#991b1b', padding: '12px', borderRadius: '6px', marginBottom: '16px', fontSize: '0.9rem' }}>
+            {error}
+          </div>
+        )}
+
         {orderSuccess && (
-          <div className="alert-success">
-            Success! Your order has been placed and an agent is being assigned.
+          <div className="alert-success" style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '16px', borderRadius: '6px', marginBottom: '24px', border: '1px solid #bbf7d0', fontWeight: '500' }}>
+            Success! Your order has been placed and is routing to the nearest agent.
           </div>
         )}
 
@@ -72,42 +141,47 @@ const CustomerPortal = () => {
 
             <div className="form-group">
               <label className="form-label">Actual Weight (KG)</label>
-              <input type="number" className="form-control" name="actualWeight" placeholder="e.g. 2.5" required
+              <input type="number" step="0.1" className="form-control" name="actualWeight" placeholder="e.g. 2.5" required
                 value={formData.actualWeight} onChange={handleInputChange} />
             </div>
 
             <div className="form-group">
               <label className="form-label">Length (CM)</label>
-              <input type="number" className="form-control" name="length" placeholder="e.g. 30" required
+              <input type="number" step="0.1" className="form-control" name="length" placeholder="e.g. 30" required
                 value={formData.length} onChange={handleInputChange} />
             </div>
 
             <div className="form-group">
               <label className="form-label">Breadth (CM)</label>
-              <input type="number" className="form-control" name="breadth" placeholder="e.g. 20" required
+              <input type="number" step="0.1" className="form-control" name="breadth" placeholder="e.g. 20" required
                 value={formData.breadth} onChange={handleInputChange} />
             </div>
 
             <div className="form-group">
               <label className="form-label">Height (CM)</label>
-              <input type="number" className="form-control" name="height" placeholder="e.g. 15" required
+              <input type="number" step="0.1" className="form-control" name="height" placeholder="e.g. 15" required
                 value={formData.height} onChange={handleInputChange} />
             </div>
           </div>
 
-          {!calculatedPrice && !orderSuccess && (
-            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '16px', padding: '12px' }}>
-              Calculate Price
+          {!calculationDetails && !orderSuccess && (
+            <button type="submit" className="btn btn-primary" disabled={isLoading} style={{ width: '100%', marginTop: '16px', padding: '12px', opacity: isLoading ? 0.7 : 1 }}>
+              {isLoading ? 'Calculating...' : 'Calculate Price'}
             </button>
           )}
         </form>
 
-        {calculatedPrice && (
-          <div className="price-display">
-            <h3>Estimated Total Charge</h3>
-            <p className="price-amount">${calculatedPrice}</p>
-            <button className="btn btn-primary" onClick={handleBookOrder} style={{ width: '100%', marginTop: '16px', padding: '12px' }}>
-              Confirm & Book Order
+        {calculationDetails && (
+          <div className="price-display" style={{ background: '#f8fafc', border: '1px dashed #cbd5e1', padding: '20px', borderRadius: '8px', textAlign: 'center', margin: '24px 0' }}>
+            <h3 style={{ margin: '0 0 8px 0', color: '#64748b', fontSize: '0.9rem' }}>Estimated Total Charge</h3>
+            <p style={{ fontSize: '2.5rem', fontWeight: '700', color: '#0f172a', margin: '0 0 16px 0' }}>
+              ${calculationDetails.totalCharge}
+            </p>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 16px 0' }}>
+              Billed on Chargeable Weight: {calculationDetails.chargeableWeight}kg
+            </p>
+            <button className="btn btn-primary" onClick={handleBookOrder} disabled={isLoading} style={{ width: '100%', padding: '12px', opacity: isLoading ? 0.7 : 1 }}>
+              {isLoading ? 'Booking...' : 'Confirm & Book Order'}
             </button>
           </div>
         )}

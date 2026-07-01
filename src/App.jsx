@@ -12,7 +12,6 @@ function App() {
     localStorage.removeItem('token'); // Destroy the security token
     setUser(null); // Return to login screen
   };
-
   // If no user is logged in, ONLY show the login screen
   if (!user) {
     return <Login onLogin={setUser} />;

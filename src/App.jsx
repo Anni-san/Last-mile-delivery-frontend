@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import AgentDashboard from './AgentDashboard';
 import Dashboard from './Dashboard';
 import CustomerPortal from './CustomerPortal';
 import Login from './Login';
@@ -35,11 +36,7 @@ function App() {
         {/* Strictly enforce view based on role */}
         {user.role === 'CUSTOMER' && <CustomerPortal />}
         {user.role === 'ADMIN' && <Dashboard />}
-        {user.role === 'AGENT' && (
-          <div className="layout-background">
-             <div className="form-card"><h2 style={{margin: 0}}>Agent Dashboard (Coming Soon)</h2></div>
-          </div>
-        )}
+        {user.role === 'AGENT' && <AgentDashboard />}
       </main>
     </div>
   );

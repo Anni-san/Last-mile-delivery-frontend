@@ -3,18 +3,26 @@ import AgentDashboard from './AgentDashboard';
 import Dashboard from './Dashboard';
 import CustomerPortal from './CustomerPortal';
 import Login from './Login';
+import Register from './Register'; // --- NEW IMPORT ---
 
 function App() {
   // state to hold the logged-in user. If null, show the login page.
   const [user, setUser] = useState(null);
+  
+  // --- NEW STATE: Toggle between Login and Register ---
+  const [showRegister, setShowRegister] = useState(false); 
 
   const handleLogout = () => {
     localStorage.removeItem('token'); // Destroy the security token
     setUser(null); // Return to login screen
   };
-  // If no user is logged in, ONLY show the login screen
+
+  // If no user is logged in, ONLY show the login screen or register screen
   if (!user) {
-    return <Login onLogin={setUser} />;
+    if (showRegister) {
+      return <Register onGoToLogin={() => setShowRegister(false)} />;
+    }
+    return <Login onLogin={setUser} onGoToRegister={() => setShowRegister(true)} />;
   }
 
   // If they are logged in, show a minimal header just for logging out

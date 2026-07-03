@@ -6,7 +6,6 @@ const AgentDashboard = ({ user }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // 1. Fetch live orders when the dashboard loads
   useEffect(() => {
     const fetchOrders = async () => {
       try {
@@ -18,10 +17,10 @@ const AgentDashboard = ({ user }) => {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error);
 
-        // Filter: Only show orders assigned to THIS specific logged-in agent
-        const myDeliveries = data.filter(order => order.agent_id === user.id);
+        // BULLETPROOF FILTER: Convert both to strings to prevent Type mismatches
+        const myDeliveries = data.filter(order => String(order.agent_id) === String(user.id));
+        
         setDeliveries(myDeliveries);
-
       } catch (err) {
         setError("Failed to fetch live deliveries.");
       } finally {
@@ -32,7 +31,6 @@ const AgentDashboard = ({ user }) => {
     fetchOrders();
   }, [user.id]);
 
-  // 2. Connect buttons to the Database & Email system
   const handleStatusUpdate = async (orderId, newStatus) => {
     try {
       const token = localStorage.getItem('token');
@@ -49,13 +47,11 @@ const AgentDashboard = ({ user }) => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
 
-      // Instantly update the UI badge
       setDeliveries(deliveries.map(delivery => 
         delivery.id === orderId ? { ...delivery, status: newStatus } : delivery
       ));
 
-      // Quick visual feedback that the database saved it and the email fired
-      alert(`Success! Order #${orderId} marked as '${newStatus}'. Email notification triggered.`);
+      alert(`Success! Order #${orderId} marked as '${newStatus}'.`);
 
     } catch (err) {
       alert(`Error: ${err.message}`);
@@ -68,7 +64,8 @@ const AgentDashboard = ({ user }) => {
         
         <header className="dashboard-header">
           <div>
-            <h1 className="brand-title">Driver Manifest</h1>
+            {/* DISPLAY THE ID FOR DEBUGGING */}
+            <h1 className="brand-title">Driver Manifest (My ID: {user?.id})</h1>
             <p className="brand-subtitle">View your route and update live delivery statuses.</p>
           </div>
         </header>
